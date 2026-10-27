@@ -11,11 +11,11 @@
 #   curl -fsSL https://raw.githubusercontent.com/PATH-PHC-RGB-PHASE-2/AgentKit-Run/refs/heads/main/agent_kit.sh \
 #     | bash -s -- <PROJECT> <COMMAND> [opsi]
 #
-#   PROJECT : Backend | CMS | Mobile
+#   PROJECT : Backend | CMS | Mobile | WebResult
 #   COMMAND : build | apply | verify | status | help
 #
 # Opsi:
-#   --root DIR       folder induk berisi Backend/, CMS/, Mobile/, AgentKit/, AgentKit-Run/ (default: dideteksi dari folder kerja)
+#   --root DIR       folder induk berisi Backend/, CMS/, Mobile/, WebResult/, AgentKit/, AgentKit-Run/ (default: dideteksi dari folder kerja)
 #   --target DIR     folder repo proyek tujuan (default: <root>/<PROJECT>)
 #   --agentkit DIR   folder data AgentKit lokal (default: <root>/AgentKit)
 #   --local          apply/verify/status membaca data dari AgentKit lokal, bukan unduhan
@@ -33,7 +33,7 @@
 # blok "# BEGIN agent-kit" di info/exclude, dan status/cadangan di <git-dir>/agent-kit/.
 # =============================================================================
 
-AK_VERSION="2.1.0"
+AK_VERSION="2.2.0"
 # Sumber data (repo privat). Skripnya sendiri diunduh dari repo publik AgentKit-Run.
 AK_DEFAULT_BASE="https://raw.githubusercontent.com/PATH-PHC-RGB-PHASE-2/AgentKit/refs/heads/master"
 AK_BLOCK_BEGIN="# BEGIN agent-kit"
@@ -146,6 +146,11 @@ ak_load_conf() {
   C_INCLUDE="$(ak_conf_section "$AK_CONF" include)"
   C_EXCLUDE="$(ak_conf_section "$AK_CONF" exclude)"
   C_SECRET="$(ak_conf_section "$AK_CONF" secret)"
+  # Berkas yang biasanya rahasia tetapi sengaja didistribusikan oleh repo
+  # AgentKit privat. Nilai tetap diperiksa pola hard-secret saat build,
+  # kecuali path eksplisit pada package_private_secret.
+  C_PACKAGE_PRIVATE="$(ak_conf_section "$AK_CONF" package_private)"
+  C_PACKAGE_PRIVATE_SECRET="$(ak_conf_section "$AK_CONF" package_private_secret)"
   C_SEED="$(ak_conf_section "$AK_CONF" seed)"
   C_BLOCK="$(ak_conf_section "$AK_CONF" exclude_block)"
 }
@@ -259,7 +264,9 @@ EOF
     _kind="${_line%% *}"; _rel="${_line#* }"
     ak_match "$_rel" "$C_EXCLUDE" && continue
     if [ "$_kind" = "L" ]; then echo "$_rel" >> "$AK_TMP/links.lst"; continue; fi
-    if ak_match "$_rel" "$C_SECRET"; then echo "$_rel" >> "$AK_TMP/secret.lst"; continue; fi
+    if ak_match "$_rel" "$C_SECRET" && ! ak_match "$_rel" "$C_PACKAGE_PRIVATE"; then
+      echo "$_rel" >> "$AK_TMP/secret.lst"; continue
+    fi
     if ak_match "$_rel" "$C_SEED"; then echo "$_rel" >> "$AK_TMP/seed.lst"; continue; fi
     echo "$_rel" >> "$AK_TMP/payload.lst"
   done
@@ -373,7 +380,12 @@ ak_cmd_build() {
   [ -s "$AK_TMP/payload.lst" ] || ak_die "tidak ada berkas untuk dipaketkan"
   ak_stage "$AK_TMP/work/b"
   _hard="$(cd "$AK_TMP/work/b" && grep -rnIE "$AK_HARD" . 2>/dev/null | cut -d: -f1,2 | sed 's#^\./##')"
-  [ -z "$_hard" ] || ak_die "pola rahasia ditemukan (isi tidak ditampilkan): $(printf '%s ' $_hard)"
+  _hard_unapproved="$(printf '%s\n' "$_hard" | while IFS= read -r _hit; do
+    [ -z "$_hit" ] && continue
+    _path="${_hit%%:*}"
+    ak_match "$_path" "$C_PACKAGE_PRIVATE_SECRET" || printf '%s\n' "$_hit"
+  done)"
+  [ -z "$_hard_unapproved" ] || ak_die "pola rahasia ditemukan (isi tidak ditampilkan): $(printf '%s ' $_hard_unapproved)"
   _soft="$(cd "$AK_TMP/work/b" && grep -rniIE "$AK_SOFT" . 2>/dev/null | cut -d: -f1,2 | sed 's#^\./##' | LC_ALL=C sort)"
 
   # Rekonstruksi versi sebelumnya dari rantai patch dan cocokkan dengan manifest-nya.
@@ -426,8 +438,8 @@ ak_cmd_build() {
     echo "- Catatan: ${AK_NOTE:-(tanpa catatan)}"
     echo "- Sumber: $AK_PROJECT branch \`$_head\`, dibangun oleh \`$(id -un 2>/dev/null || echo ?)\` dengan agent_kit.sh $AK_VERSION"
     echo "- Berkas: $(wc -l < "$AK_TMP/new.manifest" | tr -d ' ') terpaket"
-    if [ -s "$AK_TMP/secret.lst" ]; then echo "- Dikecualikan (rahasia/lokal): $(tr '\n' ' ' < "$AK_TMP/secret.lst")"; fi
-    if [ -s "$AK_TMP/seed.lst" ]; then echo "- Seed (dipasang bila belum ada): $(tr '\n' ' ' < "$AK_TMP/seed.lst")"; fi
+    if [ -s "$AK_TMP/secret.lst" ]; then echo "- Dikecualikan (rahasia/lokal): $(tr '\n' ' ' < "$AK_TMP/secret.lst" | sed 's/ $//')"; fi
+    if [ -s "$AK_TMP/seed.lst" ]; then echo "- Seed (dipasang bila belum ada): $(tr '\n' ' ' < "$AK_TMP/seed.lst" | sed 's/ $//')"; fi
     if [ -n "$_soft" ]; then echo "- Baris berpola kredensial: $(printf '%s\n' "$_soft" | wc -l | tr -d ' ') (lihat \`$_v.laporan.txt\`)"; fi
     echo ""
     echo '```'
@@ -634,7 +646,7 @@ KaderKita AgentKit — distribusi berkas agent tanpa Git repo proyek
   curl -fsSL https://raw.githubusercontent.com/PATH-PHC-RGB-PHASE-2/AgentKit-Run/refs/heads/main/agent_kit.sh \
     | bash -s -- <PROJECT> <COMMAND> [opsi]
 
-  PROJECT : Backend | CMS | Mobile
+  PROJECT : Backend | CMS | Mobile | WebResult
   COMMAND :
     build   bangun versi patch baru dari folder proyek ke AgentKit/.agent-kit/dist/<PROJECT>/ (otomatis vNNNN berikutnya)
     apply   terapkan patch dari versi terpasang (atau v0001) sampai versi terbaru
@@ -671,7 +683,7 @@ main() {
       *) ak_die "opsi tidak dikenal: $1" ;;
     esac
   done
-  case "$AK_PROJECT" in Backend|CMS|Mobile) ;; *) ak_die "PROJECT harus Backend, CMS, atau Mobile (diberikan: $AK_PROJECT)" ;; esac
+  case "$AK_PROJECT" in Backend|CMS|Mobile|WebResult) ;; *) ak_die "PROJECT harus Backend, CMS, Mobile, atau WebResult (diberikan: $AK_PROJECT)" ;; esac
   command -v git >/dev/null 2>&1 || ak_die "git tidak ditemukan (dibutuhkan sebagai mesin patch)"
   [ "$AK_SOURCE" = local ] || command -v curl >/dev/null 2>&1 || ak_die "curl tidak ditemukan"
   AK_BASE="${AK_BASE%/}"
