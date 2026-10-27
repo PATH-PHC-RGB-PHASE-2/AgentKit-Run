@@ -1,6 +1,6 @@
 # AgentKit-Run — KaderKita
 
-Skrip untuk memasang dan memelihara berkas agent lokal proyek **Backend**, **CMS**, dan **Mobile** KaderKita (`CLAUDE.md`, `AGENTS.md`, `kilo.jsonc`, `.agents/`, `.claude/`, `.codex/`, `.kilo/`, `docs/`, `.docker/`) tanpa melewati Git repo proyek.
+Skrip untuk memasang dan memelihara berkas agent lokal proyek **Backend**, **CMS**, **Mobile**, dan **WebResult** KaderKita (`CLAUDE.md`, `AGENTS.md`, `kilo.jsonc`, `.agents/`, `.claude/`, `.codex/`, `.kilo/`, `docs/`, `.docker/`) tanpa melewati Git repo proyek.
 
 Repo ini **publik** dan hanya berisi skrip. Datanya (konfigurasi per proyek dan rangkaian patch) ada di repo **privat** [`AgentKit`](https://github.com/PATH-PHC-RGB-PHASE-2/AgentKit). Skrip mengunduh data itu memakai token GitHub milik Anda, jadi hanya anggota yang punya akses ke repo AgentKit yang bisa memasang kit.
 
@@ -8,7 +8,7 @@ Repo ini **publik** dan hanya berisi skrip. Datanya (konfigurasi per proyek dan 
 RGB/
 ├── AgentKit-Run/          ← repo ini (publik): agent_kit.sh, agent_kit.ps1
 ├── AgentKit/              ← repo data (privat): projects/<PROJECT>.conf, .agent-kit/dist/<PROJECT>/
-├── Backend/   CMS/   Mobile/
+├── Backend/   CMS/   Mobile/   WebResult/
 ```
 
 ## Akses ke data (repo privat)

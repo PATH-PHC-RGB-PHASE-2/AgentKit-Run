@@ -4,7 +4,7 @@ KaderKita AgentKit — peluncur PowerShell (Windows PowerShell 5.1 dan PowerShel
 Pemakaian online (skrip dari repo publik AgentKit-Run):
   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/PATH-PHC-RGB-PHASE-2/AgentKit-Run/refs/heads/main/agent_kit.ps1))) <PROJECT> <COMMAND> [opsi]
 
-  PROJECT : Backend | CMS | Mobile
+  PROJECT : Backend | CMS | Mobile | WebResult
   COMMAND : build | apply | verify | status | help
   Opsi    : sama dengan agent_kit.sh (--root, --target, --agentkit, --local, --base-url, --dry-run, --overwrite, --note, --force)
 
